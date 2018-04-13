@@ -1,6 +1,13 @@
-addSbtPlugin("org.xerial.sbt" % "sbt-sonatype" % "2.0")
-addSbtPlugin("com.jsuereth" % "sbt-pgp" % "1.1.0")
-addSbtPlugin("io.get-coursier" % "sbt-coursier" % "1.0.0-RC11")
-addSbtPlugin("com.lucidchart" % "sbt-scalafmt-coursier" % "1.11")
+
+credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
+
+resolvers ++= Seq(
+  "DefaultMavenRepository" at "https://repo1.maven.org/maven2/",
+  "JavaNet1Repository" at "http://download.java.net/maven/1/",
+  Resolver.sonatypeRepo("public"),
+  Resolver.typesafeRepo("releases"),
+  "inspired snapshots" at "https://artifacts.dev.inspired.ag/artifactory/inspired-snapshots/",
+  "inspired releases" at "https://artifacts.dev.inspired.ag/artifactory/inspired-releases/"
+)
 
 libraryDependencies += "com.softwaremill.sttp" %% "okhttp-handler" % "0.0.12"

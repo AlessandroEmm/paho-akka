@@ -147,6 +147,11 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
   whenUnhandled {
     case Event(msg: Message, _) =>
       context.child(urlEnc(msg.topic)) foreach (_ ! msg)
+      subscribed.foreach{subscribedRef =>
+        if (subscribedRef.topic.endsWith("#") && msg.topic.contains(subscribedRef.topic.dropRight(1)))
+          subscribedRef.ref ! msg
+      }
+      context.child(urlEnc(msg.topic)) foreach (_ ! msg)
       stay()
 
     case Event(UnderlyingSubsAck(topic, fail), _) =>

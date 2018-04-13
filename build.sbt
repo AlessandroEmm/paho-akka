@@ -1,12 +1,14 @@
-import sbt.internal.util.ManagedLogger
+
 
 organization := "com.sandinh"
 name := "paho-akka"
 
-version := "1.5.0"
+version := "1.5.1-inspired"
 
 scalaVersion := "2.12.3"
-crossScalaVersions := Seq("2.11.11", "2.12.3")
+//crossScalaVersions := Seq("2.11.11", "2.12.4")
+
+credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
 scalacOptions ++= Seq("-encoding", "UTF-8", "-deprecation", "-feature", "-target:jvm-1.8")
 scalacOptions ++= (CrossVersion.scalaApiVersion(scalaVersion.value) match {
@@ -14,6 +16,15 @@ scalacOptions ++= (CrossVersion.scalaApiVersion(scalaVersion.value) match {
   case _ => Nil
 })
 
+publishTo := Some("Artifactory Realm" at "https://artifacts.dev.inspired.ag/artifactory/inspired-releases/")
+resolvers ++= Seq(
+  "DefaultMavenRepository" at "https://repo1.maven.org/maven2/",
+  "JavaNet1Repository" at "http://download.java.net/maven/1/",
+  Resolver.sonatypeRepo("public"),
+  Resolver.typesafeRepo("releases"),
+  "inspired snapshots" at "https://artifacts.dev.inspired.ag/artifactory/inspired-snapshots/",
+  "inspired releases" at "https://artifacts.dev.inspired.ag/artifactory/inspired-releases/"
+)
 resolvers += "Paho Releases" at "https://repo.eclipse.org/content/repositories/paho-releases"
 
 val pahoLibName = "org.eclipse.paho.client.mqttv3"
@@ -43,9 +54,9 @@ lazy val pahoLib = {
 
 libraryDependencies ++= Seq(
   pahoLib,
-  "com.typesafe.akka" %% "akka-actor"     % "2.5.4",
+  "com.typesafe.akka" %% "akka-actor"     % "2.5.9",
   "org.log4s"         %% "log4s"          % "1.3.6",
   "org.scalatest"     %% "scalatest"      % "3.0.4"   % Test,
-  "com.typesafe.akka" %% "akka-testkit"   % "2.5.4"   % Test,
+  "com.typesafe.akka" %% "akka-testkit"   % "2.5.9"   % Test,
   "ch.qos.logback"    % "logback-classic" % "1.2.3"   % Test
 )
