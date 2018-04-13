@@ -3,10 +3,10 @@
 organization := "com.sandinh"
 name := "paho-akka"
 
-version := "1.5.1-inspired"
+version := "1.5.3-inspired"
 
-scalaVersion := "2.12.3"
-//crossScalaVersions := Seq("2.11.11", "2.12.4")
+scalaVersion := "2.12.5"
+
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
@@ -54,9 +54,9 @@ lazy val pahoLib = {
 
 libraryDependencies ++= Seq(
   pahoLib,
-  "com.typesafe.akka" %% "akka-actor"     % "2.5.9",
+  "com.typesafe.akka" %% "akka-actor"     % "2.5.11",
   "org.log4s"         %% "log4s"          % "1.3.6",
   "org.scalatest"     %% "scalatest"      % "3.0.4"   % Test,
-  "com.typesafe.akka" %% "akka-testkit"   % "2.5.9"   % Test,
+  "com.typesafe.akka" %% "akka-testkit"   % "2.5.11"   % Test,
   "ch.qos.logback"    % "logback-classic" % "1.2.3"   % Test
 )

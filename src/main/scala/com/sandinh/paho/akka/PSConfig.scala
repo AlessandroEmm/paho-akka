@@ -1,5 +1,6 @@
 package com.sandinh.paho.akka
 
+import javax.net.SocketFactory
 import org.eclipse.paho.client.mqttv3.{MqttAsyncClient, MqttConnectOptions}
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions.{CLEAN_SESSION_DEFAULT, MAX_INFLIGHT_DEFAULT}
 
@@ -46,19 +47,21 @@ case class PSConfig(
   * @param will A last will and testament message (and topic, and qos) that will be set on the connection
   */
 case class ConnOptions(
-    username:     String  = null,
-    password:     String  = null,
+    username:     Option[String]  = None,
+    password:     Option[String]  = None,
     cleanSession: Boolean = CLEAN_SESSION_DEFAULT,
     maxInflight:  Int     = MAX_INFLIGHT_DEFAULT * 10,
-    will:         Publish = null
+    will:         Option[Publish] = None,
+    socketFactory: Option[SocketFactory] = None
 ) {
   lazy val get: MqttConnectOptions = {
     val opt = new MqttConnectOptions
-    if (username != null) opt.setUserName(username)
-    if (password != null) opt.setPassword(password.toCharArray)
+    username.foreach(opt.setUserName(_))
+    password.foreach(p => opt.setPassword(p.toCharArray))
     opt.setCleanSession(cleanSession)
     opt.setMaxInflight(maxInflight)
-    if (will != null) opt.setWill(will.topic, will.message().getPayload, will.message().getQos, false)
+    will.foreach(w => opt.setWill(w.topic, w.message().getPayload, w.message().getQos, false))
+    socketFactory.foreach(opt.setSocketFactory(_))
     opt
   }
 }
