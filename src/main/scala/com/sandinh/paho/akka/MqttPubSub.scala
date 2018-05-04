@@ -63,6 +63,14 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
   //reconnect attempt count, reset when connect success
   private[this] var connectCount = 0
 
+  /** Match one single level wild card character(i.e. + ).
+    * TODO: Wildcard matching needs to be extended to support multiple single level wildcards and combination of single level and multi level wildcards as specified in the specification: http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/csprd02/mqtt-v3.1.1-csprd02.html#_Toc385349843
+    * */
+  def matchSingleLevelWildcard(subTopic: String, actualTopic: String): Boolean = subTopic.replaceFirst("\\+",(actualTopic diff subTopic)) == actualTopic
+
+  /** Match multi level wild card character(i.e. #) */
+  def matchMultiLevelWildcard(subTopic: String, actualTopic: String): Boolean = (subTopic.endsWith("#") && actualTopic.contains(subTopic.dropRight(1)))
+
   //++++ FSM logic ++++
   startWith(DisconnectedState, Unit)
 
@@ -148,7 +156,7 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
     case Event(msg: Message, _) =>
       context.child(urlEnc(msg.topic)) foreach (_ ! msg)
       subscribed.foreach{subscribedRef =>
-        if (subscribedRef.topic.endsWith("#") && msg.topic.contains(subscribedRef.topic.dropRight(1)))
+        if (matchMultiLevelWildcard(subscribedRef.topic,msg.topic) || matchSingleLevelWildcard(subscribedRef.topic,msg.topic))
           subscribedRef.ref ! msg
       }
       context.child(urlEnc(msg.topic)) foreach (_ ! msg)

@@ -3,7 +3,7 @@
 organization := "com.sandinh"
 name := "paho-akka"
 
-version := "1.5.3-inspired"
+version := "1.6.0-inspired"
 
 scalaVersion := "2.12.5"
 
