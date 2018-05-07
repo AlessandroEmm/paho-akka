@@ -156,10 +156,9 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
     case Event(msg: Message, _) =>
       context.child(urlEnc(msg.topic)) foreach (_ ! msg)
       subscribed.foreach{subscribedRef =>
-        if (matchMultiLevelWildcard(subscribedRef.topic,msg.topic) || matchSingleLevelWildcard(subscribedRef.topic,msg.topic))
+        if ((matchMultiLevelWildcard(subscribedRef.topic,msg.topic) || matchSingleLevelWildcard(subscribedRef.topic,msg.topic)) && (subscribedRef.topic != msg.topic))
           subscribedRef.ref ! msg
       }
-      context.child(urlEnc(msg.topic)) foreach (_ ! msg)
       stay()
 
     case Event(UnderlyingSubsAck(topic, fail), _) =>
