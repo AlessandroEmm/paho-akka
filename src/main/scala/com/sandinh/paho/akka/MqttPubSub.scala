@@ -16,6 +16,47 @@ object MqttPubSub {
   //++++ ultilities ++++//
   @inline private def urlEnc(s: String) = URLEncoder.encode(s, "utf-8")
   @inline private def urlDec(s: String) = URLDecoder.decode(s, "utf-8")
+
+  def matchTopic(subTopic: String, actualTopic: String): Boolean = {
+    val sub = subTopic.split("/")
+    val actual = actualTopic.split("/")
+
+    def doesTopicLevelMatch(actual: String, subscribed: String): Boolean = {
+      logger.debug(s"Topic level matching between actual ($actual) subscribed ($subscribed) topic level")
+      if( actual == subscribed ){
+        logger.debug("matched 1:1")
+        true
+      }
+      else if ( subscribed == "+" ){
+        logger.debug("matched single-level wildcard")
+        true
+      }
+      else if (subscribed == "#"){
+        logger.debug("matched multi-level wildcard")
+        true
+      }
+      else
+        false
+    }
+
+    logger.debug(s"sub length: ${sub.length} sub tail: ${sub.takeRight(1)(0)} actual length: ${actual.length}")
+
+    if(sub.length == actual.length){
+      logger.debug("path are same length")
+      ( actual zip sub).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
+    }
+    else if(sub.length < actual.length && sub.takeRight(1)(0) == "#" ){
+      logger.debug("sub smaller but ends with nulti-level wildcard")
+      ( actual zipAll( sub,"this shouldn't happen","#")).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
+    }
+    else if( sub.length - 1 == actual.length && sub.takeRight(1)(0) == "#" ){
+      logger.debug("sub by one level greater but ends with multi-level wildcard")
+      ( actual zip sub.dropRight(1)).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
+    }
+    else
+      false
+  }
+
 }
 
 /** Notes:
@@ -66,10 +107,6 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
   /** Match one single level wild card character(i.e. + ).
     * TODO: Wildcard matching needs to be extended to support multiple single level wildcards and combination of single level and multi level wildcards as specified in the specification: http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/csprd02/mqtt-v3.1.1-csprd02.html#_Toc385349843
     * */
-  def matchSingleLevelWildcard(subTopic: String, actualTopic: String): Boolean = subTopic.replaceFirst("\\+",(actualTopic diff subTopic)) == actualTopic
-
-  /** Match multi level wild card character(i.e. #) */
-  def matchMultiLevelWildcard(subTopic: String, actualTopic: String): Boolean = (subTopic.endsWith("#") && actualTopic.contains(subTopic.dropRight(1)))
 
   //++++ FSM logic ++++
   startWith(DisconnectedState, Unit)
@@ -156,7 +193,7 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
     case Event(msg: Message, _) =>
       context.child(urlEnc(msg.topic)) foreach (_ ! msg)
       subscribed.foreach{subscribedRef =>
-        if ((matchMultiLevelWildcard(subscribedRef.topic,msg.topic) || matchSingleLevelWildcard(subscribedRef.topic,msg.topic)) && (subscribedRef.topic != msg.topic))
+        if (matchTopic(subscribedRef.topic,msg.topic) && (subscribedRef.topic != msg.topic))
           subscribedRef.ref ! msg
       }
       stay()
