@@ -18,8 +18,23 @@ object MqttPubSub {
   @inline private def urlDec(s: String) = URLDecoder.decode(s, "utf-8")
 
   def matchTopic(subTopic: String, actualTopic: String): Boolean = {
-    val sub = subTopic.split("/")
-    val actual = actualTopic.split("/")
+
+    val levelSeparator = "/"
+    val multiLevelWildcard = "#"
+    val singleLevelWildcard = "+"
+
+    def prepareTopicsForMatching(actual: String, subscribed: String): (Array[String], Array[String]) = {
+
+      def trailingLevelSeparator(s: String): Boolean = s.substring(s.length-1) == levelSeparator
+
+      def topicSplit(s: String) =
+        if(trailingLevelSeparator(s))
+          s.split(levelSeparator) :+ ""
+        else
+          s.split(levelSeparator)
+
+      (topicSplit(actual),topicSplit(subscribed))
+    }
 
     def doesTopicLevelMatch(actual: String, subscribed: String): Boolean = {
       logger.debug(s"Topic level matching between actual ($actual) subscribed ($subscribed) topic level")
@@ -27,11 +42,11 @@ object MqttPubSub {
         logger.debug("matched 1:1")
         true
       }
-      else if ( subscribed == "+" ){
+      else if ( subscribed == singleLevelWildcard ){
         logger.debug("matched single-level wildcard")
         true
       }
-      else if (subscribed == "#"){
+      else if (subscribed == multiLevelWildcard ){
         logger.debug("matched multi-level wildcard")
         true
       }
@@ -39,17 +54,19 @@ object MqttPubSub {
         false
     }
 
-    logger.debug(s"sub length: ${sub.length} sub tail: ${sub.takeRight(1)(0)} actual length: ${actual.length}")
+    val (actual,sub) = prepareTopicsForMatching(actualTopic,subTopic)
+
+    logger.debug(s"subscribed topic has ${sub.length} levels and ends with ${subTopic.substring(subTopic.length -1)} , actual topic has ${actual.length} levels and ends with ${actualTopic.substring(actualTopic.length-1)}")
 
     if(sub.length == actual.length){
       logger.debug("path are same length")
       ( actual zip sub).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
-    else if(sub.length < actual.length && sub.takeRight(1)(0) == "#" ){
-      logger.debug("sub smaller but ends with nulti-level wildcard")
+    else if(sub.length < actual.length && subTopic.substring(subTopic.length-1) == multiLevelWildcard ){
+      logger.debug("sub smaller but ends with multi-level wildcard")
       ( actual zipAll( sub,"this shouldn't happen","#")).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
-    else if( sub.length - 1 == actual.length && sub.takeRight(1)(0) == "#" ){
+    else if( sub.length - 1 == actual.length && subTopic.substring(subTopic.length-1) == multiLevelWildcard ){
       logger.debug("sub by one level greater but ends with multi-level wildcard")
       ( actual zip sub.dropRight(1)).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
