@@ -25,10 +25,9 @@ object MqttPubSub {
 
     def prepareTopicsForMatching(actual: String, subscribed: String): (Array[String], Array[String]) = {
 
-      def trailingLevelSeparator(s: String): Boolean = s.substring(s.length-1) == levelSeparator
-
       def topicSplit(s: String) =
-        if(trailingLevelSeparator(s))
+        // In Mqtt spec leading or trailing level separators are treated like separating a "empty" level from the following or the preceding, thus when splitting we consider that
+        if(s.endsWith(levelSeparator))
           s.split(levelSeparator) :+ ""
         else
           s.split(levelSeparator)
@@ -62,11 +61,11 @@ object MqttPubSub {
       logger.debug("path are same length")
       ( actual zip sub).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
-    else if(sub.length < actual.length && subTopic.substring(subTopic.length-1) == multiLevelWildcard ){
+    else if(sub.length < actual.length && subTopic.endsWith(multiLevelWildcard)){
       logger.debug("sub smaller but ends with multi-level wildcard")
       ( actual zipAll( sub,"this shouldn't happen","#")).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
-    else if( sub.length - 1 == actual.length && subTopic.substring(subTopic.length-1) == multiLevelWildcard ){
+    else if( sub.length - 1 == actual.length && subTopic.endsWith(multiLevelWildcard)){
       logger.debug("sub by one level greater but ends with multi-level wildcard")
       ( actual zip sub.dropRight(1)).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
@@ -210,8 +209,11 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
     case Event(msg: Message, _) =>
       context.child(urlEnc(msg.topic)) foreach (_ ! msg)
       subscribed.foreach{subscribedRef =>
-        if (matchTopic(subscribedRef.topic,msg.topic) && (subscribedRef.topic != msg.topic))
+        log.debug(s"Comparing msg topic ${msg.topic} with subscribed topic ${subscribedRef.topic}")
+        if ((subscribedRef.topic != msg.topic) && matchTopic(subscribedRef.topic,msg.topic)){
+          logger.debug(s"We have a match for ${msg.topic}")
           subscribedRef.ref ! msg
+        }
       }
       stay()
 
