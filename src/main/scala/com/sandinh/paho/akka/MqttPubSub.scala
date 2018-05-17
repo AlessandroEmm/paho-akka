@@ -37,20 +37,20 @@ object MqttPubSub {
 
     def doesTopicLevelMatch(actual: String, subscribed: String): Boolean = {
       logger.debug(s"Topic level matching between actual ($actual) subscribed ($subscribed) topic level")
-      if( actual == subscribed ){
-        logger.debug("matched 1:1")
-        true
+      subscribed match {
+        case `actual` =>
+          logger.debug("matched 1:1")
+          true
+        case `singleLevelWildcard` =>
+          logger.debug("matched single-level wildcard")
+          true
+        case `multiLevelWildcard` =>
+          logger.debug("matched multi-level wildcard")
+          true
+        case _ =>
+          logger.debug("no match.")
+          false
       }
-      else if ( subscribed == singleLevelWildcard ){
-        logger.debug("matched single-level wildcard")
-        true
-      }
-      else if (subscribed == multiLevelWildcard ){
-        logger.debug("matched multi-level wildcard")
-        true
-      }
-      else
-        false
     }
 
     val (actual,sub) = prepareTopicsForMatching(actualTopic,subTopic)
