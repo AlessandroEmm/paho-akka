@@ -18,38 +18,54 @@ object MqttPubSub {
   @inline private def urlDec(s: String) = URLDecoder.decode(s, "utf-8")
 
   def matchTopic(subTopic: String, actualTopic: String): Boolean = {
-    val sub = subTopic.split("/")
-    val actual = actualTopic.split("/")
+
+    val levelSeparator = "/"
+    val multiLevelWildcard = "#"
+    val singleLevelWildcard = "+"
+
+    def prepareTopicsForMatching(actual: String, subscribed: String): (Array[String], Array[String]) = {
+
+      def topicSplit(s: String) =
+        // In Mqtt spec leading or trailing level separators are treated like separating a "empty" level from the following or the preceding, thus when splitting we consider that
+        if(s.endsWith(levelSeparator))
+          s.split(levelSeparator) :+ ""
+        else
+          s.split(levelSeparator)
+
+      (topicSplit(actual),topicSplit(subscribed))
+    }
 
     def doesTopicLevelMatch(actual: String, subscribed: String): Boolean = {
       logger.debug(s"Topic level matching between actual ($actual) subscribed ($subscribed) topic level")
-      if( actual == subscribed ){
-        logger.debug("matched 1:1")
-        true
+      subscribed match {
+        case `actual` =>
+          logger.debug("matched 1:1")
+          true
+        case `singleLevelWildcard` =>
+          logger.debug("matched single-level wildcard")
+          true
+        case `multiLevelWildcard` =>
+          logger.debug("matched multi-level wildcard")
+          true
+        case _ =>
+          logger.debug("no match.")
+          false
       }
-      else if ( subscribed == "+" ){
-        logger.debug("matched single-level wildcard")
-        true
-      }
-      else if (subscribed == "#"){
-        logger.debug("matched multi-level wildcard")
-        true
-      }
-      else
-        false
     }
 
-    logger.debug(s"sub length: ${sub.length} sub tail: ${sub.takeRight(1)(0)} actual length: ${actual.length}")
+    val (actual,sub) = prepareTopicsForMatching(actualTopic,subTopic)
+
+    logger.debug(s"subscribed topic has ${sub.length} levels and ends with ${subTopic.substring(subTopic.length -1)} , actual topic has ${actual.length} levels and ends with ${actualTopic.substring(actualTopic.length-1)}")
 
     if(sub.length == actual.length){
       logger.debug("path are same length")
       ( actual zip sub).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
-    else if(sub.length < actual.length && sub.takeRight(1)(0) == "#" ){
-      logger.debug("sub smaller but ends with nulti-level wildcard")
+    else if(sub.length < actual.length && subTopic.endsWith(multiLevelWildcard)){
+      logger.debug("sub smaller but ends with multi-level wildcard")
       ( actual zipAll( sub,"this shouldn't happen","#")).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
-    else if( sub.length - 1 == actual.length && sub.takeRight(1)(0) == "#" ){
+    else if( sub.length - 1 == actual.length && subTopic.endsWith(multiLevelWildcard)){
       logger.debug("sub by one level greater but ends with multi-level wildcard")
       ( actual zip sub.dropRight(1)).forall( pair => doesTopicLevelMatch(pair._1,pair._2))
     }
@@ -193,8 +209,11 @@ class MqttPubSub(cfg: PSConfig) extends FSM[PSState, Unit] {
     case Event(msg: Message, _) =>
       context.child(urlEnc(msg.topic)) foreach (_ ! msg)
       subscribed.foreach{subscribedRef =>
-        if (matchTopic(subscribedRef.topic,msg.topic) && (subscribedRef.topic != msg.topic))
+        log.debug(s"Comparing msg topic ${msg.topic} with subscribed topic ${subscribedRef.topic}")
+        if ((subscribedRef.topic != msg.topic) && matchTopic(subscribedRef.topic,msg.topic)){
+          logger.debug(s"We have a match for ${msg.topic}")
           subscribedRef.ref ! msg
+        }
       }
       stay()
 
